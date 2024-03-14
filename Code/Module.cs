@@ -44,6 +44,7 @@ namespace Celeste.Mod.IsaGrabBag {
 
         public override void Load() {
             typeof(GravityHelperImports.Interop).ModInterop();
+            typeof(ReverseHelperImports.Interop).ModInterop();
 
             ArrowBubble.Load();
             BadelineFollower.Load();

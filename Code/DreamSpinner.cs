@@ -151,10 +151,6 @@ namespace Celeste.Mod.IsaGrabBag {
             AlphaBlendFunction = BlendFunction.Add
         };
 
-        //before i support DreamSpinner by using hooks.
-        //this variable is to disable these hooks.
-        public readonly object _ReverseHelperSupported;
-
         private readonly MTexture[] particleTextures;
         private readonly MTexture fgSpinnerTexture;
         private readonly MTexture bgSpinnerTexture;

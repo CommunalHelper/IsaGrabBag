@@ -47,7 +47,6 @@ namespace Celeste.Mod.IsaGrabBag {
             Variant.Invincible,
         };
 
-        private static Dictionary<TextMenu.Item, int> itemList = new();
         private static Hook enableHook, disableHook, aPressHook;
         private static TextMenu variantMenu;
 
@@ -142,19 +141,6 @@ namespace Celeste.Mod.IsaGrabBag {
             On.Celeste.ChangeRespawnTrigger.OnEnter += OnChangeRespawn;
             On.Celeste.Level.AssistMode += Level_AssistMode;
             On.Celeste.Level.VariantMode += Level_VariantMode;
-
-            Delegate optionChanged = new Action<Action<TextMenu.Option<bool>>, TextMenu.Option<bool>>(OnChange);
-            disableHook = new Hook(
-                typeof(TextMenu.Option<bool>).GetMethod("LeftPressed", BindingFlags.Instance | BindingFlags.Public),
-                optionChanged);
-
-            enableHook = new Hook(
-                typeof(TextMenu.Option<bool>).GetMethod("RightPressed", BindingFlags.Instance | BindingFlags.Public),
-                optionChanged);
-
-            aPressHook = new Hook(
-                typeof(TextMenu.Option<bool>).GetMethod("ConfirmPressed", BindingFlags.Instance | BindingFlags.Public),
-                optionChanged);
         }
 
         internal static void Unload() {
@@ -162,27 +148,11 @@ namespace Celeste.Mod.IsaGrabBag {
             On.Celeste.Level.AssistMode -= Level_AssistMode;
             On.Celeste.Level.VariantMode -= Level_VariantMode;
             On.Celeste.TextMenu.Close -= TextMenu_Close;
-
-            enableHook?.Dispose();
-            disableHook?.Dispose();
-            aPressHook?.Dispose();
-            enableHook = disableHook = aPressHook = null;
         }
 
         private static void OnChangeRespawn(On.Celeste.ChangeRespawnTrigger.orig_OnEnter orig, ChangeRespawnTrigger self, Player player) {
             orig(self, player);
             SaveToSession();
-        }
-
-        private static void OnChange(Action<TextMenu.Option<bool>> orig, TextMenu.Option<bool> self) {
-            orig(self);
-
-            if (itemList.ContainsKey(self)) {
-                bool value = self.Index >= 1;
-                int index = itemList[self];
-                Variants_Default[index] = value;
-
-            }
         }
 
         private static void Level_VariantMode(On.Celeste.Level.orig_VariantMode orig, Level self, int returnIndex, bool minimal) {
@@ -200,20 +170,30 @@ namespace Celeste.Mod.IsaGrabBag {
         private static void OnVariantMenu(TextMenu menu, bool assist) {
             variantMenu = menu;
             IsaSession session = GrabBagModule.Session;
-            itemList = new Dictionary<TextMenu.Item, int>();
 
             On.Celeste.TextMenu.Close += TextMenu_Close;
 
             int index = assist ? 8 : 0;
             for (int i = 0; i < menu.Items.Count; ++i) {
                 TextMenu.Item item = menu.Items[i];
-                if (item is not TextMenu.OnOff) {
+                if (item is not TextMenu.OnOff onoff) {
                     continue;
                 }
 
                 Variant v = (!assist && bingoUIMenuModified) ? Variant.NoGrabbing : menuLayout[index++];
-                itemList.Add(item, (int)v);
+
+                onoff.OnValueChange = OnChangeVariant(onoff.OnValueChange, onoff, v);
             }
+        }
+
+        private static Action<bool> OnChangeVariant(Action<bool> orig, TextMenu.Option<bool> self, Variant v) {
+            return val => {
+                orig(val);
+
+                bool value = self.Index >= 1;
+                int index = (int)v;
+                Variants_Default[index] = value;
+            };
         }
 
         private static void TextMenu_Close(On.Celeste.TextMenu.orig_Close orig, TextMenu self) {

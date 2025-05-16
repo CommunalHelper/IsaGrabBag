@@ -82,7 +82,6 @@ namespace Celeste.Mod.IsaGrabBag {
             if (grabbed) {
                 if (Math.Abs(player.Speed.X) > 20) {
                     player.LiftSpeed = player.Speed;
-                    player.LiftSpeedGraceTime = 0.2f;
                 }
 
                 if (player.CenterX > RightEdge || player.CenterX < LeftEdge) {
@@ -205,7 +204,6 @@ namespace Celeste.Mod.IsaGrabBag {
 
             if (Math.Sign(self.LiftSpeed.X) * Math.Sign(self.Speed.X) == -1 || Math.Abs(self.LiftSpeed.X) <= Math.Abs(self.Speed.X)) {
                 self.LiftSpeed = self.Speed;
-                self.LiftSpeedGraceTime = 0.15f;
             }
 
             int moveX = DynamicData.For(self).Get<int>("moveX");

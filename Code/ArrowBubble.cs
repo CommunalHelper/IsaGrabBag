@@ -58,8 +58,8 @@ namespace Celeste.Mod.IsaGrabBag {
         }
 
         private static int Player_RedDashUpdate(On.Celeste.Player.orig_RedDashUpdate orig, Player self) {
-            if (self.CanDash && self.LastBooster != null) {
-                DynamicData boosterData = DynamicData.For(self.LastBooster);
+            if (self.CanDash && self.LastBooster is ArrowBubble arrowBubble) {
+                DynamicData boosterData = DynamicData.For(arrowBubble);
                 boosterData.Set("respawnTimer", 1f);
                 boosterData.Set("cannotUseTimer", 0f);
             }

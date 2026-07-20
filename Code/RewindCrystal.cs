@@ -168,6 +168,7 @@ namespace Celeste.Mod.IsaGrabBag {
         private static void Level_OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader) {
             ClearRewindBuffer();
             Rewinding = false;
+            RenderStrength = 0;
         }
 
         private static void Player_Update(On.Celeste.Player.orig_Update orig, Player self) {

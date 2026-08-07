@@ -51,15 +51,19 @@ namespace Celeste.Mod.IsaGrabBag {
 
         private static void Player_RedDashEnd(On.Celeste.Player.orig_RedDashEnd orig, Player self) {
             orig(self);
-            if (GravityDir != Vector2.Zero) {
+            
+            if (self.LastBooster is ArrowBubble && GravityDir != Vector2.Zero) {
                 GravityDir = Vector2.Zero;
                 self.UseRefill(twoDashes: false);
             }
         }
 
         private static int Player_RedDashUpdate(On.Celeste.Player.orig_RedDashUpdate orig, Player self) {
-            if (self.CanDash && self.LastBooster != null) {
-                DynamicData boosterData = DynamicData.For(self.LastBooster);
+            if (self.LastBooster is not ArrowBubble arrowBubble)
+                return orig(self);
+            
+            if (self.CanDash) {
+                DynamicData boosterData = DynamicData.For(arrowBubble);
                 boosterData.Set("respawnTimer", 1f);
                 boosterData.Set("cannotUseTimer", 0f);
             }

@@ -9,12 +9,14 @@ dreamSpinner.placements = {
     {
         name = "default",
         data = {
+			texturePath = "isafriend/danger/crystal",
             useOnce = false
         }
     },
     {
         name = "oneUse",
         data = {
+			texturePath = "isafriend/danger/crystal",
             useOnce = true
         }
     }

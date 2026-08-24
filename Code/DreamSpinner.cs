@@ -1,18 +1,19 @@
 ﻿using Celeste.Mod.Entities;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Mono.Cecil.Cil;
 using Monocle;
 using System.Collections.Generic;
 
 namespace Celeste.Mod.IsaGrabBag {
-    [Tracked]
-    [CustomEntity("isaBag/dreamSpinner", "isaBag/dreamSpinFake")]
+    [Tracked] [CustomEntity("isaBag/dreamSpinner", "isaBag/dreamSpinFake")]
     public class DreamSpinner : Entity {
         private static readonly Color debrisColor = Calc.HexToColor("c18a53");
 
         public bool OneUse;
         public bool Fake;
         public bool ShouldRender;
+        public string imagePath;
 
         internal float rotation;
         internal Color color;
@@ -22,28 +23,24 @@ namespace Celeste.Mod.IsaGrabBag {
         private DreamBlock block;
         private bool hasCollided;
 
-        public DreamSpinner(Vector2 position, bool _useOnce, bool _fake)
+        public DreamSpinner(Vector2 position, bool _useOnce, bool _fake, string _imagePath)
             : base(position) {
-            Collider = new ColliderList(new Collider[] {
-                new Circle(6f, 0f, 0f),
-                new Hitbox(16f, 4f, -8f, -3f)
-            });
-
+            Collider = !_fake ? new ColliderList(new Circle(6f), new Hitbox(16f, 4f, -8f, -3f)) : null;
             Add(new PlayerCollider(OnPlayer));
             Add(new LedgeBlocker());
 
             OneUse = _useOnce;
             Fake = _fake;
+            imagePath = _imagePath;
             Depth = -8499; // Update just before our renderer
             Collidable = false;
             Visible = false;
-
             rotation = Calc.Random.Choose(0, 1, 2, 3) * MathHelper.PiOver2;
             offsets = new List<Vector2>();
         }
 
         public DreamSpinner(EntityData data, Vector2 offset)
-            : this(data.Position + offset, data.Bool("useOnce", false), _fake: data.Name == "isaBag/dreamSpinFake") {
+            : this(data.Position + offset, data.Bool("useOnce", false), _fake: data.Name == "isaBag/dreamSpinFake",data.Attr("texturePath", "isafriend/danger/crystal")) {
             ID = data.ID;
         }
 
@@ -80,12 +77,12 @@ namespace Celeste.Mod.IsaGrabBag {
         public override void Update() {
             if (Fake) {
                 return;
-            } else if (!InView()) {
+            }
+            if (!InView()) {
                 block.Active = false;
                 return;
-            } else {
-                block.Active = true;
             }
+            block.Active = true;
 
             base.Update();
 
@@ -123,7 +120,7 @@ namespace Celeste.Mod.IsaGrabBag {
         }
 
         public bool InView() {
-            Camera camera = (Scene as Level).Camera;
+            Camera camera = SceneAs<Level>().Camera;
             return X > camera.X - 16f && Y > camera.Y - 16f && X < camera.X + 320f + 16f && Y < camera.Y + 180f + 16f;
         }
 
@@ -144,10 +141,15 @@ namespace Celeste.Mod.IsaGrabBag {
         };
 
         private readonly MTexture[] particleTextures;
-        private readonly MTexture fgSpinnerTexture;
-        private readonly MTexture bgSpinnerTexture;
-        private readonly MTexture fgBorderTexture;
-        private readonly MTexture bgBorderTexture;
+        private readonly Dictionary<string, SpinnerTextures> textureSets = new();
+
+        private class SpinnerTextures {
+            public MTexture FgSpinner;
+            public MTexture BgSpinner;
+            public MTexture FgBorder;
+            public MTexture BgBorder;
+        }
+
 
         private VirtualRenderTarget dreamSpinnerTarget;
         private List<DreamSpinner> spinnersToRender;
@@ -160,17 +162,32 @@ namespace Celeste.Mod.IsaGrabBag {
             AddTag(Tags.Global | Tags.TransitionUpdate);
             Add(new BeforeRenderHook(BeforeRender));
 
-            fgSpinnerTexture = GFX.Game["isafriend/danger/crystal/dreamSpinner"].GetSubtexture(0, 0, 24, 24);
-            bgSpinnerTexture = GFX.Game["isafriend/danger/crystal/dreamSpinner"].GetSubtexture(24, 0, 24, 24);
-            fgBorderTexture = GFX.Game["isafriend/danger/crystal/dreamBorder"].GetSubtexture(0, 0, 24, 24);
-            bgBorderTexture = GFX.Game["isafriend/danger/crystal/dreamBorder"].GetSubtexture(24, 0, 24, 24);
-            particleTextures = new MTexture[] {
+            particleTextures = [
                 GFX.Game["objects/dreamblock/particles"].GetSubtexture(14, 0, 7, 7),
                 GFX.Game["objects/dreamblock/particles"].GetSubtexture(7, 0, 7, 7),
                 GFX.Game["objects/dreamblock/particles"].GetSubtexture(0, 0, 7, 7),
                 GFX.Game["objects/dreamblock/particles"].GetSubtexture(7, 0, 7, 7)
-            };
+            ];
+
+
         }
+        private SpinnerTextures GetTextures(string imagePath) {
+            if (imagePath == "") {
+                imagePath = "isafriend/danger/crystal";
+            }
+            // handle backslashes because people can be dumb sometimes
+            imagePath = imagePath.Replace('\\', '/').TrimEnd('/');
+
+            // kind of hate this but its  okay enough
+            if (!textureSets.TryGetValue(imagePath, out SpinnerTextures textures)) {
+                textures = new SpinnerTextures { FgSpinner = GFX.Game[$"{imagePath}/dreamSpinner_fg"], BgSpinner = GFX.Game[$"{imagePath}/dreamSpinner_bg"],
+                    FgBorder = GFX.Game[$"{imagePath}/dreamBorder_fg"], BgBorder = GFX.Game[$"{imagePath}/dreamBorder_bg"] };
+                textureSets[imagePath] = textures;
+            }
+
+            return textures;
+        }
+
 
         public override void Awake(Scene scene) {
             base.Awake(scene);
@@ -260,12 +277,30 @@ namespace Celeste.Mod.IsaGrabBag {
 
         private void DrawSpinnerTextures() {
             foreach (DreamSpinner spinner in spinnersToRender) {
-                fgSpinnerTexture.Draw(spinner.Position, origin, spinner.color, Vector2.One, spinner.rotation);
+                SpinnerTextures textures = GetTextures(spinner.imagePath);
+
+                textures.FgSpinner.Draw(spinner.Position, origin, spinner.color, Vector2.One, spinner.rotation);
+
                 foreach (Vector2 bgOffset in spinner.offsets) {
-                    bgSpinnerTexture.Draw(bgOffset, origin, spinner.color);
+                    textures.BgSpinner.Draw(bgOffset, origin, spinner.color);
                 }
             }
         }
+
+        private void DrawSpinnerBorders() {
+            foreach (DreamSpinner spinner in spinnersToRender) {
+                SpinnerTextures textures = GetTextures(spinner.imagePath);
+
+                Color borderColor = !dreamDashEnabled ? Color.Gray : spinner.OneUse ? Color.Orange * 0.9f : Color.White;
+
+                textures.FgBorder.Draw(spinner.Position, origin, borderColor, Vector2.One, spinner.rotation);
+
+                foreach (Vector2 bgOffset in spinner.offsets) {
+                    textures.BgBorder.Draw(bgOffset, origin, borderColor);
+                }
+            }
+        }
+
 
         private void DrawDreamParticles(Vector2 cameraPos) {
             for (int i = 0; i < particles.Length; i++) {
@@ -285,16 +320,6 @@ namespace Celeste.Mod.IsaGrabBag {
                 };
 
                 texture.DrawCentered(position, color);
-            }
-        }
-
-        private void DrawSpinnerBorders() {
-            foreach (DreamSpinner spinner in spinnersToRender) {
-                Color borderColor = !dreamDashEnabled ? Color.Gray : spinner.OneUse ? Color.Orange * 0.9f : Color.White;
-                fgBorderTexture.Draw(spinner.Position, origin, borderColor, Vector2.One, spinner.rotation);
-                foreach (Vector2 bgOffset in spinner.offsets) {
-                    bgBorderTexture.Draw(bgOffset, origin, borderColor);
-                }
             }
         }
 
